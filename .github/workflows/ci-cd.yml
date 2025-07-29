@@ -13,13 +13,19 @@ jobs:
     name: Build Node.js ${{ matrix.node-version }}
     steps:
       - uses: actions/checkout@v3
+
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node-version }}
-      - run: npm ci
-      - run: npm run build
-      - name: Upload dist artifact
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build TypeScript
+        run: npm run build
+
+      - name: Upload dist folder
         uses: actions/upload-artifact@v4
         with:
           name: dist-node-${{ matrix.node-version }}
@@ -34,29 +40,37 @@ jobs:
     name: Test Node.js ${{ matrix.node-version }}
     steps:
       - uses: actions/checkout@v3
+
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node-version }}
-      - run: npm ci
-      - run: npm test
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
 
   docker:
     needs: build
     runs-on: ubuntu-latest
-    if: ${{ matrix.node-version == 18 }}
+    name: Docker Build & Push (Node 18 only)
     steps:
       - uses: actions/checkout@v3
-      - name: Download dist artifact
+
+      - name: Download dist artifact from Node 18
         uses: actions/download-artifact@v4
         with:
           name: dist-node-18
           path: dist/
+
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
+
       - name: Build and push Docker image
         run: |
           docker build -t ${{ secrets.DOCKER_USERNAME }}/node-ci-cd-app:latest .
@@ -69,8 +83,8 @@ jobs:
     environment:
       name: ${{ github.ref_name == 'main' && 'production' || 'development' }}
     steps:
-      - name: Print Environment Variables
+      - name: Show environment variables
         run: |
+          echo "Deploying to ${{ github.ref_name }}"
           echo "API_URL=${{ vars.API_URL }}"
           echo "DB_NAME=${{ vars.DB_NAME }}"
-
